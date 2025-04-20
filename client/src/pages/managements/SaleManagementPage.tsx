@@ -85,10 +85,7 @@ const SaleManagementPage = () => {
     },
   ];
 
-  // const onDateChange: DatePickerProps['onChange'] = (_date, dateString) => {
-  //   setDate(dateString as string);
-  // };
-
+  
   return (
     <>
       <Flex justify='end' style={{ margin: '5px', gap: 4 }}>
