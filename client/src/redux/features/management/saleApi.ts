@@ -1,75 +1,80 @@
 import { baseApi } from "../baseApi";
 
-const saleApi = baseApi.injectEndpoints({
+export const saleApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getAllSale: builder.query({
-      query: (query) => ({
+    // Fetch all sales
+    getAllSale: builder.query<{
+      success: boolean;
+      statusCode: number;
+      message: string;
+      meta: {
+        page: number;
+        limit: number;
+        total: number;
+        totalPage: number;
+      };
+      data: any[];
+    }, void>({
+      query: () => ({
         url: '/sales',
         method: 'GET',
-        params: query
       }),
-      providesTags: ['sale']
+      providesTags: ['sale'],
     }),
-    createSale: builder.mutation({
+
+    // Create a new sale
+    createSale: builder.mutation<any, any>({
       query: (payload) => ({
         url: '/sales',
         method: 'POST',
         body: payload,
       }),
-      invalidatesTags: ['sale', 'product']
+      invalidatesTags: ['sale'],
     }),
-    deleteSale: builder.mutation({
-      query: (id) => ({
-        url: `/sales/${id}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: ['sale']
-    }),
-    updateSale: builder.mutation({
-      query: ({ id, payload }) => ({
-        url: `/sales/${id}`,
-        method: 'PATCH',
-        body: payload
-      }),
-      invalidatesTags: ['sale']
-    }),
-    yearlySale: builder.query({
+
+    // Daily sales
+    dailySale: builder.query<{ success: boolean; statusCode: number; message: string; data: any[] }, void>({
       query: () => ({
-        url: `/sales/years`,
-        method: 'GET'
+        url: '/sales/days',
+        method: 'GET',
       }),
-      providesTags: ['sale']
+      providesTags: ['sale'],
     }),
-    monthlySale: builder.query({
+
+    // Weekly sales
+    weeklySale: builder.query<{ success: boolean; statusCode: number; message: string; data: any[] }, void>({
       query: () => ({
-        url: `/sales/months`,
-        method: 'GET'
+        url: '/sales/weeks',
+        method: 'GET',
       }),
-      providesTags: ['sale']
+      providesTags: ['sale'],
     }),
-    weeklySale: builder.query({
+
+    // Monthly sales
+    monthlySale: builder.query<{ success: boolean; statusCode: number; message: string; data: any[] }, void>({
       query: () => ({
-        url: `/sales/weeks`,
-        method: 'GET'
+        url: '/sales/months',
+        method: 'GET',
       }),
-      providesTags: ['sale']
+      providesTags: ['sale'],
     }),
-    dailySale: builder.query({
+
+    // Yearly sales
+    yearlySale: builder.query<{ success: boolean; statusCode: number; message: string; data: any[] }, void>({
       query: () => ({
-        url: `/sales/days`,
-        method: 'GET'
+        url: '/sales/years',
+        method: 'GET',
       }),
-      providesTags: ['sale']
+      providesTags: ['sale'],
     }),
-  })
-})
+  }),
+});
 
 export const {
   useGetAllSaleQuery,
   useCreateSaleMutation,
-  useDeleteSaleMutation,
-  useUpdateSaleMutation,
-  useYearlySaleQuery,
-  useMonthlySaleQuery,
+  useDailySaleQuery,
   useWeeklySaleQuery,
-  useDailySaleQuery } = saleApi
+  useMonthlySaleQuery,
+  useYearlySaleQuery,
+} = saleApi;
