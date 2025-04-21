@@ -1,4 +1,3 @@
-/* eslint-disable no-unsafe-finally */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import mongoose, { Types } from 'mongoose';
 import sortAndPaginatePipeline from '../../lib/sortAndPaginate.pipeline';
@@ -16,220 +15,81 @@ class SaleServices extends BaseServices<any> {
    * Create new sale and decrease product stock
    */
   async create(payload: any, userId: string) {
-    const { productPrice, quantity } = payload;
+    // Destructure and compute total price
+    const { product: productId, productPrice, quantity } = payload;
     payload.user = userId;
     payload.totalPrice = productPrice * quantity;
-    const product = await Product.findById(payload.product);
 
-    if (quantity > product!.stock) {
-      throw new CustomError(400, `${quantity} product are not available in stock!`);
+    // Validate product existence
+    const product = await Product.findById(productId);
+    if (!product) {
+      throw new CustomError(404, 'Product not found');
     }
-    let result: any[];
-    const session = await mongoose.startSession();
+
+    // Check stock availability
+    if (quantity > product.stock) {
+      throw new CustomError(400, `${quantity} product(s) not available in stock!`);
+    }
 
     try {
-      session.startTransaction();
+      // 1) Update product stock
+      product.stock -= quantity;
+      await product.save();
 
-      await Product.findByIdAndUpdate(product?._id, { $inc: { stock: -quantity } }, { session });
-      result = await this.model.create([payload], { session });
-      await session.commitTransaction();
+      // 2) Create sale record
+      const sale = await this.model.create({ ...payload });
+      return sale;
 
-      return result;
-    } catch (error) {
-      await session.abortTransaction();
-      throw new CustomError(400, 'Sale create failed');
-    } finally {
-      await session.endSession();
+    } catch (err: any) {
+      console.error('🔥 createSale error:', err);
+      // Re-throw known CustomErrors
+      if (err instanceof CustomError) throw err;
+      // Handle Mongoose validation errors
+      if (err.name === 'ValidationError') {
+        throw new CustomError(400, err.message, err.errors);
+      }
+      // Fallback
+      throw new CustomError(500, err.message || 'Internal server error');
     }
   }
 
   /**
-   *  Get all sale
+   * Get all sales for a user with optional filters
    */
   async readAll(query: Record<string, unknown> = {}, userId: string) {
-    // const date = query.date ? query.date : null;
     const search = query.search ? (query.search as string) : '';
-
     const data = await this.model.aggregate([
       {
         $match: {
           user: new Types.ObjectId(userId),
-          $or: [{ productName: { $regex: search, $options: 'i' } }, { buyerName: { $regex: search, $options: 'i' } }]
+          $or: [
+            { productName: { $regex: search, $options: 'i' } },
+            { buyerName: { $regex: search, $options: 'i' } }
+          ]
         }
       },
       ...sortAndPaginatePipeline(query)
     ]);
-
     const totalCount = await this.model.aggregate([
       {
         $match: {
-          user: new Types.ObjectId(userId)
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: 1 }
-        }
-      },
-      {
-        $project: {
-          _id: 0
-        }
-      }
-    ]);
-
-    return { data, totalCount };
-  }
-
-  async readAllWeeks(userId: string) {
-    return await this.model.aggregate([
-      {
-        $match: {
           user: new Types.ObjectId(userId),
-          date: { $exists: true, $ne: null }
+          $or: [
+            { productName: { $regex: search, $options: 'i' } },
+            { buyerName: { $regex: search, $options: 'i' } }
+          ]
         }
       },
-      {
-        $group: {
-          _id: {
-            week: { $isoWeek: '$date' },
-            year: { $isoWeekYear: '$date' }
-          },
-          totalQuantity: { $sum: '$quantity' },
-          totalRevenue: { $sum: '$totalPrice' }
-        }
-      },
-      {
-        $sort: {
-          '_id.year': 1,
-          '_id.week': 1
-        }
-      },
-      {
-        $project: {
-          week: '$_id.week',
-          year: '$_id.year',
-          totalQuantity: 1,
-          totalRevenue: 1,
-          _id: 0
-        }
-      }
+      { $count: 'total' }
     ]);
+    return { data, totalCount: totalCount[0]?.total || 0 };
   }
 
-  async readAllYearly(userId: string) {
-    return await this.model.aggregate([
-      {
-        $match: {
-          user: new Types.ObjectId(userId),
-          date: { $exists: true, $ne: null }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$date' }
-          },
-          totalQuantity: { $sum: '$quantity' },
-          totalRevenue: { $sum: '$totalPrice' }
-        }
-      },
-      {
-        $sort: {
-          '_id.year': 1
-        }
-      },
-      {
-        $project: {
-          year: '$_id.year',
-          totalQuantity: 1,
-          totalRevenue: 1,
-          _id: 0
-        }
-      }
-    ]);
-  }
-
-  async readAllDaily(userId: string) {
-    return await this.model.aggregate([
-      {
-        $match: {
-          user: new Types.ObjectId(userId),
-          date: { $exists: true, $ne: null }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            day: { $dayOfMonth: '$date' },
-            month: { $month: '$date' },
-            year: { $year: '$date' }
-          },
-          totalQuantity: { $sum: '$quantity' },
-          totalRevenue: { $sum: '$totalPrice' }
-        }
-      },
-      {
-        $sort: {
-          '_id.year': 1,
-          '_id.month': 1,
-          '_id.day': 1
-        }
-      },
-      {
-        $project: {
-          day: '$_id.day',
-          month: '$_id.month',
-          year: '$_id.year',
-          totalQuantity: 1,
-          totalRevenue: 1,
-          _id: 0
-        }
-      }
-    ]);
-  }
-
-  async readAllMonths(userId: string) {
-    return await this.model.aggregate([
-      {
-        $match: {
-          user: new Types.ObjectId(userId),
-          date: { $exists: true, $ne: null }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            month: { $month: '$date' },
-            year: { $year: '$date' }
-          },
-          totalQuantity: { $sum: '$quantity' },
-          totalRevenue: { $sum: '$totalPrice' }
-        }
-      },
-      {
-        $sort: {
-          '_id.year': 1,
-          '_id.month': 1
-        }
-      },
-      {
-        $project: {
-          month: '$_id.month',
-          year: '$_id.year',
-          totalQuantity: 1,
-          totalRevenue: 1,
-          _id: 0
-        }
-      }
-    ]);
-  }
-
-  // get single sale
+  /**
+   * Get single sale by ID
+   */
   async read(id: string, userId: string) {
     await this._isExists(id);
-
     return this.model.findOne({ user: new Types.ObjectId(userId), _id: id }).populate({
       path: 'product',
       select: '-createdAt -updatedAt -__v'
@@ -237,5 +97,5 @@ class SaleServices extends BaseServices<any> {
   }
 }
 
-const saleServices = new SaleServices(Sale, 'modelName');
+const saleServices = new SaleServices(Sale, 'Sale');
 export default saleServices;

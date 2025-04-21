@@ -413,21 +413,7 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
 
           <CustomInput label='Description' name='description' register={register} />
 
-          <Row>
-            <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-              <label htmlFor='Size' className='label'>
-                Size
-              </label>
-            </Col>
-            <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-              <select className={`input-field`} {...register('size')}>
-                <option value=''>Select Product Size</option>
-                <option value='SMALL'>Small</option>
-                <option value='MEDIUM'>Medium</option>
-                <option value='LARGE'>Large</option>
-              </select>
-            </Col>
-          </Row>
+         
           <Flex justify='center'>
             <Button
               htmlType='submit'
