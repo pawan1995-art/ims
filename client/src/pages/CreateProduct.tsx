@@ -32,8 +32,8 @@ const CreateProduct = () => {
     if (payload.size === '') {
       delete payload.size;
     }
-
-    try {
+    console.log('Payload:', payload);
+    try { 
       const res = await createNewProduct(payload).unwrap();
       if (res.statusCode === 201) {
         toastMessage({icon: 'success', text: res.message});
@@ -41,7 +41,6 @@ const CreateProduct = () => {
       }
     } catch (error: any) {
       console.log(error);
-
       toastMessage({icon: 'error', text: error.data.message});
     }
   };
