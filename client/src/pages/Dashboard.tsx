@@ -35,7 +35,7 @@ const Dashboard = () => {
             <div className='number-card'>
               <h3>Total Revenue</h3>
               <h1>
-                $
+              ₹
                 {yearlyData?.data.reduce(
                   (acc: number, cur: { totalRevenue: number }) => (acc += cur.totalRevenue),
                   0
